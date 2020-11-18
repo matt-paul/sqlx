@@ -1,3 +1,4 @@
+use crate::migrate;
 use console::style;
 use dialoguer::Confirm;
 use sqlx::any::Any;
@@ -18,6 +19,7 @@ pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
                 "\nAre you sure you want to drop the database at {}?",
                 style(uri).cyan()
             ))
+            .wait_for_newline(true)
             .default(false)
             .interact()?
     {
@@ -29,4 +31,14 @@ pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn reset(migration_source: &str, uri: &str, confirm: bool) -> anyhow::Result<()> {
+    drop(uri, confirm).await?;
+    setup(migration_source, uri).await
+}
+
+pub async fn setup(migration_source: &str, uri: &str) -> anyhow::Result<()> {
+    create(uri).await?;
+    migrate::run(migration_source, uri).await
 }

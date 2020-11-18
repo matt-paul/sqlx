@@ -9,15 +9,15 @@ mode with `sqlx::query!()` and friends.
 
 ```bash
 # supports all databases supported by SQLx
-$ cargo install --version=0.1.0-beta.1 sqlx-cli
+$ cargo install --version=0.2.0 sqlx-cli
 
 # only for postgres
-$ cargo install --version=0.1.0-beta.1 sqlx-cli --no-default-features --features postgres
+$ cargo install --version=0.2.0 sqlx-cli --no-default-features --features postgres
 ```
 
 ### Usage
 
-All commands require `DATABASE_URL` to be set, either in the environment or in a `.env` file
+All commands require that a database url is provided. This can be done either with the `--database-url` command line option or by setting `DATABASE_URL`, either in the environment or in a `.env` file
 in the current working directory.
 
 `database` and `migrate` subcommands support only Postgres; MySQL and SQLite are TODO.
@@ -46,7 +46,7 @@ this new file.
 
 ---
 ```bash
-$ sqlx migration run
+$ sqlx migrate run
 ```
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
@@ -80,4 +80,4 @@ database schema and queries in the project. Intended for use in Continuous Integ
 
 To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
-variable.
+variable to `true`.

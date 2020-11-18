@@ -1,5 +1,5 @@
 use crate::common::StatementCache;
-use crate::connection::Connection;
+use crate::connection::{Connection, LogSettings};
 use crate::error::Error;
 use crate::sqlite::statement::{StatementWorker, VirtualStatement};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
@@ -32,6 +32,8 @@ pub struct SqliteConnection {
 
     // most recent non-persistent statement
     pub(crate) statement: Option<VirtualStatement>,
+
+    log_settings: LogSettings,
 }
 
 impl SqliteConnection {
@@ -106,8 +108,5 @@ impl Drop for SqliteConnection {
         // we must explicitly drop the statements as the drop-order in a struct is undefined
         self.statements.clear();
         self.statement.take();
-
-        // we then explicitly close the worker
-        self.worker.close();
     }
 }

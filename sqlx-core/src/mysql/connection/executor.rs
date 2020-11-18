@@ -16,12 +16,12 @@ use crate::mysql::{
     MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTypeInfo,
     MySqlValueFormat,
 };
+use crate::HashMap;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
-use hashbrown::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
@@ -89,7 +89,7 @@ impl MySqlConnection {
         arguments: Option<MySqlArguments>,
         persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlDone, MySqlRow>, Error>> + 'e, Error> {
-        let mut logger = QueryLogger::new(sql);
+        let mut logger = QueryLogger::new(sql, self.log_settings.clone());
 
         self.stream.wait_until_ready().await?;
         self.stream.busy = Busy::Result;

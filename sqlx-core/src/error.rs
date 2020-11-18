@@ -92,6 +92,12 @@ pub enum Error {
     #[error("attempted to acquire a connection on a closed pool")]
     PoolClosed,
 
+    /// A background worker (e.g. [`StatementWorker`]) has crashed.
+    ///
+    /// [`StatementWorker`]: crate::sqlite::StatementWorker
+    #[error("attempted to communicate with a crashed background worker")]
+    WorkerCrashed,
+
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
@@ -122,12 +128,6 @@ impl Error {
     #[inline]
     pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
         Error::Configuration(err.into())
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn tls(err: impl StdError + Send + Sync + 'static) -> Self {
-        Error::Tls(err.into())
     }
 }
 
@@ -231,6 +231,22 @@ impl From<crate::migrate::MigrateError> for Error {
     #[inline]
     fn from(error: crate::migrate::MigrateError) -> Self {
         Error::Migrate(Box::new(error))
+    }
+}
+
+#[cfg(feature = "_tls-native-tls")]
+impl From<sqlx_rt::native_tls::Error> for Error {
+    #[inline]
+    fn from(error: sqlx_rt::native_tls::Error) -> Self {
+        Error::Tls(Box::new(error))
+    }
+}
+
+#[cfg(feature = "_tls-rustls")]
+impl From<webpki::InvalidDNSNameError> for Error {
+    #[inline]
+    fn from(error: webpki::InvalidDNSNameError) -> Self {
+        Error::Tls(Box::new(error))
     }
 }
 

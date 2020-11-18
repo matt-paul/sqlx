@@ -454,10 +454,10 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    #[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
     use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
 
-    #[cfg(feature = "runtime-async-std")]
+    #[cfg(feature = "_rt-async-std")]
     use async_std::{future::timeout, task::sleep, task::spawn};
 
     eprintln!("starting pool");
@@ -655,6 +655,26 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_sets_application_name() -> anyhow::Result<()> {
+    sqlx_test::setup_if_needed();
+
+    let mut options: PgConnectOptions = env::var("DATABASE_URL")?.parse().unwrap();
+    options = options.application_name("some-name");
+
+    let mut conn = PgConnection::connect_with(&options).await?;
+
+    let row = sqlx::query("select current_setting('application_name') as app_name")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let val: String = row.get("app_name");
+
+    assert_eq!("some-name", &val);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_handle_parameter_status_message_issue_484() -> anyhow::Result<()> {
     new::<Postgres>().await?.execute("SET NAMES 'UTF8'").await?;
     Ok(())
@@ -686,6 +706,60 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
+
+    Ok(())
+}
+
+// repro is more reliable with the basic scheduler used by `#[tokio::test]`
+#[cfg(feature = "_rt-tokio")]
+#[tokio::test]
+async fn test_issue_622() -> anyhow::Result<()> {
+    use std::time::Instant;
+
+    setup_if_needed();
+
+    let pool = PgPoolOptions::new()
+        .max_connections(1) // also fails with higher counts, e.g. 5
+        .connect(&std::env::var("DATABASE_URL").unwrap())
+        .await?;
+
+    println!("pool state: {:?}", pool);
+
+    let mut handles = vec![];
+
+    // given repro spawned 100 tasks but I found it reliably reproduced with 3
+    for i in 0..3 {
+        let pool = pool.clone();
+
+        handles.push(sqlx_rt::spawn(async move {
+            {
+                let mut conn = pool.acquire().await.unwrap();
+
+                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+
+                // conn gets dropped here and should be returned to the pool
+            }
+
+            // (do some other work here without holding on to a connection)
+            // this actually fixes the issue, depending on the timeout used
+            // sqlx_rt::sleep(Duration::from_millis(500)).await;
+
+            {
+                let start = Instant::now();
+                match pool.acquire().await {
+                    Ok(conn) => {
+                        println!("{} acquire took {:?}", i, start.elapsed());
+                        drop(conn);
+                    }
+                    Err(e) => panic!("{} acquire returned error: {} pool state: {:?}", i, e, pool),
+                }
+            }
+
+            Result::<(), anyhow::Error>::Ok(())
+        }));
+    }
+
+    futures::future::try_join_all(handles).await?;
 
     Ok(())
 }

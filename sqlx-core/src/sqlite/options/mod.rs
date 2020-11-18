@@ -4,6 +4,7 @@ mod connect;
 mod journal_mode;
 mod parse;
 
+use crate::connection::LogSettings;
 pub use journal_mode::SqliteJournalMode;
 use std::{borrow::Cow, time::Duration};
 
@@ -30,7 +31,7 @@ use std::{borrow::Cow, time::Duration};
 /// use std::str::FromStr;
 ///
 /// # fn main() {
-/// # #[cfg(feature = "runtime-async-std")]
+/// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
 /// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
@@ -48,8 +49,10 @@ pub struct SqliteConnectOptions {
     pub(crate) create_if_missing: bool,
     pub(crate) journal_mode: SqliteJournalMode,
     pub(crate) foreign_keys: bool,
+    pub(crate) shared_cache: bool,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) busy_timeout: Duration,
+    pub(crate) log_settings: LogSettings,
 }
 
 impl Default for SqliteConnectOptions {
@@ -66,9 +69,11 @@ impl SqliteConnectOptions {
             read_only: false,
             create_if_missing: false,
             foreign_keys: true,
+            shared_cache: false,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
             busy_timeout: Duration::from_secs(5),
+            log_settings: Default::default(),
         }
     }
 

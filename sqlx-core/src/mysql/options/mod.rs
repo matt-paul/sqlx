@@ -4,11 +4,12 @@ mod connect;
 mod parse;
 mod ssl_mode;
 
+use crate::connection::LogSettings;
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
-/// A value of `PgConnectOptions` can be parsed from a connection URI,
+/// A value of `MySqlConnectOptions` can be parsed from a connection URI,
 /// as described by [MySQL](https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html).
 ///
 /// The generic format of the connection URL:
@@ -34,7 +35,7 @@ pub use ssl_mode::MySqlSslMode;
 /// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 /// #
 /// # fn main() {
-/// # #[cfg(feature = "runtime-async-std")]
+/// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
 /// // URI connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
@@ -65,6 +66,7 @@ pub struct MySqlConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
+    pub(crate) log_settings: LogSettings,
 }
 
 impl Default for MySqlConnectOptions {
@@ -88,6 +90,7 @@ impl MySqlConnectOptions {
             ssl_mode: MySqlSslMode::Preferred,
             ssl_ca: None,
             statement_cache_capacity: 100,
+            log_settings: Default::default(),
         }
     }
 

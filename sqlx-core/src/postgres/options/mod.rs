@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 mod connect;
 mod parse;
 mod ssl_mode;
-
+use crate::connection::LogSettings;
 pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
@@ -26,6 +26,12 @@ pub use ssl_mode::PgSslMode;
 /// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
 /// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
 /// | `host` | `None` | Path to the directory containing a PostgreSQL unix domain socket, which will be used instead of TCP if set. |
+/// | `hostaddr` | `None` | Same as `host`, but only accepts IP addresses. |
+/// | `application-name` | `None` | The name will be displayed in the pg_stat_activity view and included in CSV log entries. |
+/// | `user` | result of `whoami` | PostgreSQL user name to connect as. |
+/// | `password` | `None` | Password to be used if the server demands password authentication. |
+/// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
+/// | `dbname` | `None` | The database name. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -37,6 +43,7 @@ pub use ssl_mode::PgSslMode;
 /// postgresql://localhost/mydb
 /// postgresql://user@localhost
 /// postgresql://user:secret@localhost
+/// postgresql://localhost?dbname=mydb&user=postgres&password=postgres
 /// ```
 ///
 /// # Example
@@ -47,7 +54,7 @@ pub use ssl_mode::PgSslMode;
 /// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
 /// # fn main() {
-/// # #[cfg(feature = "runtime-async-std")]
+/// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
 /// // URI connection string
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
@@ -77,6 +84,8 @@ pub struct PgConnectOptions {
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<PathBuf>,
     pub(crate) statement_cache_capacity: usize,
+    pub(crate) application_name: Option<String>,
+    pub(crate) log_settings: LogSettings,
 }
 
 impl Default for PgConnectOptions {
@@ -98,6 +107,7 @@ impl PgConnectOptions {
     ///  * `PGDATABASE`
     ///  * `PGSSLROOTCERT`
     ///  * `PGSSLMODE`
+    ///  * `PGAPPNAME`
     ///
     /// # Example
     ///
@@ -126,6 +136,8 @@ impl PgConnectOptions {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
+            application_name: var("PGAPPNAME").ok(),
+            log_settings: Default::default(),
         }
     }
 
@@ -267,6 +279,20 @@ impl PgConnectOptions {
     /// The default cache capacity is 100 statements.
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Sets the application name. Defaults to None
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .application_name("my-app");
+    /// ```
+    pub fn application_name(mut self, application_name: &str) -> Self {
+        self.application_name = Some(application_name.to_owned());
         self
     }
 

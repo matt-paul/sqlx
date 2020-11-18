@@ -1,12 +1,12 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
+use crate::HashMap;
 use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
-use hashbrown::HashMap;
 
 use crate::common::StatementCache;
-use crate::connection::Connection;
+use crate::connection::{Connection, LogSettings};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
@@ -60,6 +60,8 @@ pub struct PgConnection {
     // current transaction status
     transaction_status: TransactionStatus,
     pub(crate) transaction_depth: usize,
+
+    log_settings: LogSettings,
 }
 
 impl PgConnection {
